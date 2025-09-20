@@ -1,8 +1,9 @@
 # OoFlow
 
-**A lightweight Python framework for building asynchronous data processing pipelines with stateful nodes.**
+**A lightweight AI-Ready Python framework for building asynchronous data processing pipelines with stateful nodes.**
 
 Chinese version description please see below : D
+
 文件下半部分有中文说明哟 : D
 
 ## Quick Start
