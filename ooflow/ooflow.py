@@ -9,7 +9,12 @@ import functools
 import inspect
 import logging
 from datetime import datetime
-from typing import Callable, Awaitable, ParamSpec, TypeVar, Any, Union, Optional
+from typing import Callable, Awaitable, TypeVar, Any, Union, Optional
+
+try:
+    from typing import ParamSpec  # Python 3.10+
+except ImportError:
+    from typing_extensions import ParamSpec  # Python < 3.10
 
 # Configure recommended logger
 def setup_logger(name: str = "ooflow", level: int = logging.INFO) -> logging.Logger:

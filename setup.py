@@ -47,7 +47,7 @@ setup(
     ],
     python_requires=">=3.8",
     install_requires=[
-        # No external dependencies - uses only Python standard library
+        "typing_extensions>=4.0.0; python_version<'3.10'"
     ],
     extras_require={
         "dev": [
