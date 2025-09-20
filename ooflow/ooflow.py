@@ -9,12 +9,12 @@ import functools
 import inspect
 import logging
 from datetime import datetime
-from typing import Callable, Awaitable, TypeVar, Any, Union, Optional
+from typing import Callable, Awaitable, TypeVar, Any, Union, Optional, Dict, List, Set, Tuple
 
 try:
     from typing import ParamSpec  # Python 3.10+
 except ImportError:
-    from typing_extensions import ParamSpec  # Python < 3.10
+    from typing_extensions import ParamSpec  # Python 3.9
 
 # Configure recommended logger
 def setup_logger(name: str = "ooflow", level: int = logging.INFO) -> logging.Logger:
@@ -62,8 +62,8 @@ R = TypeVar("R")
 T = TypeVar("T")
 
 class Context:
-    incoming_edges: dict["Node", "Edge"]
-    outgoing_edges: dict["Node", "Edge"]
+    incoming_edges: Dict["Node", "Edge"]
+    outgoing_edges: Dict["Node", "Edge"]
 
     def __init__(self):
         self.incoming_edges = {}
@@ -75,7 +75,7 @@ class Context:
     def add_outgoing_edge(self, edge: "Edge"):
         self.outgoing_edges[edge.to_node] = edge
 
-    def _get_target_queues(self, target: Union[list["Node"], "Node", None], candidate_edges: dict["Node", "Edge"]) -> list[asyncio.Queue]:
+    def _get_target_queues(self, target: Union[List["Node"], "Node", None], candidate_edges: Dict["Node", "Edge"]) -> List[asyncio.Queue]:
         """Get target queue list, handle common node lookup logic"""
         if target is None:
             return [edge.queue for edge in candidate_edges.values()]
@@ -89,7 +89,7 @@ class Context:
             queues.append(candidate_edges[node].queue)
         return queues
 
-    def emit_nowait(self, msg: Any, to: Union[list["Node"], "Node", None] = None):
+    def emit_nowait(self, msg: Any, to: Union[List["Node"], "Node", None] = None):
         """Send message to target nodes in non-blocking way, if 'to' is None, send to all successor nodes
 
         May raise asyncio.QueueFull exception if any successor node's queue is full
@@ -98,13 +98,13 @@ class Context:
         for queue in queues:
             queue.put_nowait(msg)
 
-    async def emit(self, msg: Any, to: Union[list["Node"], "Node", None] = None):
+    async def emit(self, msg: Any, to: Union[List["Node"], "Node", None] = None):
         """Send message to target nodes in blocking way, if 'to' is None, send to all successor nodes"""
         queues = self._get_target_queues(to, self.outgoing_edges)
         for queue in queues:
             await queue.put(msg)
 
-    def fetch_nowait(self, from_: Union[list["Node"], "Node", None] = None):
+    def fetch_nowait(self, from_: Union[List["Node"], "Node", None] = None):
         """fetch message from target nodes in non-blocking way, if 'from_' is None, fetch from all predecessor nodes
 
         It's a good choice to specify 'from_' as a single node for better performance
@@ -119,7 +119,7 @@ class Context:
 
         raise asyncio.QueueEmpty
 
-    async def fetch(self, from_: Union[list["Node"], "Node", None] = None, check_interval: float = 0.005):
+    async def fetch(self, from_: Union[List["Node"], "Node", None] = None, check_interval: float = 0.005):
         """fetch message from target nodes in blocking way, if 'from_' is None, fetch from all predecessor nodes
 
         If 'from_' specifies multiple nodes, will first try non-blocking retrieval
@@ -202,7 +202,7 @@ class Node:
         self._bound= self._func.__get__(instance, owner)
         return self
 
-    def to(self, *args: "Node") -> tuple["Node", tuple["Node", ...]]:
+    def to(self, *args: "Node") -> Tuple["Node", Tuple["Node", ...]]:
         for arg in args:
             if not isinstance(arg, Node):
                 raise ValueError(f"params must be of type Node, but got {arg}")
@@ -221,16 +221,16 @@ class Edge:
 class OoFlow:
     Yin: Context            # Yin, invisible to user, actually the end point of the entire OoFlow, used to simplify OoFlow coding logic
     Yang: Context           # Yang, invisible to user, actually the start point of the entire OoFlow, used to simplify OoFlow coding logic
-    end_nodes: set[Node]    # End nodes calculated from user's input
-    start_nodes: set[Node]  # Start nodes calculated from user's input
-    graphs: set["OoFlow.NodeGroup"]     # Multiple graphs are allowed, calculated from user's input
-    running_tasks: list[asyncio.Task]
+    end_nodes: Set[Node]    # End nodes calculated from user's input
+    start_nodes: Set[Node]  # Start nodes calculated from user's input
+    graphs: Set["OoFlow.NodeGroup"]     # Multiple graphs are allowed, calculated from user's input
+    running_tasks: List[asyncio.Task]
     running: bool
 
     class NodeGroup:
         id: int
         parent: Optional["OoFlow.NodeGroup"]
-        nodes: set[Node]
+        nodes: Set[Node]
 
         def __init__(self, id: int):
             self.id = id
@@ -244,7 +244,7 @@ class OoFlow:
             self.nodes.add(node)
 
 
-    def __init__(self, *args: tuple[Node, tuple[Node, ...]]):
+    def __init__(self, *args: Tuple[Node, Tuple[Node, ...]]):
         """ Construct OoFlow instance
 
         *args represents node relationships in adjacency list format, for example:
@@ -270,13 +270,13 @@ class OoFlow:
             return (x > y) - (x < y)
 
         # Use union-find for graph partitioning
-        group_list: list["OoFlow.NodeGroup"] = []
-        node2group: dict[Node, int] = {}
-        dedup: set[str] = set()
+        group_list: List["OoFlow.NodeGroup"] = []
+        node2group: Dict[Node, int] = {}
+        dedup: Set[str] = set()
 
         for adj in args:
             from_: Node = adj[0]
-            to_list: tuple[Node, ...] = adj[1]
+            to_list: Tuple[Node, ...] = adj[1]
 
             # First calculate which NodeGroup to merge into
             adj_group_index: list[Optional[int]] = sorted(
@@ -310,8 +310,8 @@ class OoFlow:
                 to.context.add_incoming_edge(edge)
         
         # Calculate Graph and check if any graph is missing start or end nodes
-        gid2start: dict[int, bool] = {}
-        gid2end: dict[int, bool] = {}
+        gid2start: Dict[int, bool] = {}
+        gid2end: Dict[int, bool] = {}
         for group in group_list:
             ancestor = group
             while ancestor.parent is not None:
@@ -363,17 +363,17 @@ class OoFlow:
         self.running = False
         self.running_tasks = []
 
-    def emit_nowait(self, msg: Any, to: Union[list[Node], Node, None] = None):
+    def emit_nowait(self, msg: Any, to: Union[List[Node], Node, None] = None):
         self.Yang.emit_nowait(msg, to)
 
-    async def emit(self, msg: Any, to: Union[list[Node], Node, None] = None):
+    async def emit(self, msg: Any, to: Union[List[Node], Node, None] = None):
         await self.Yang.emit(msg, to)
 
-    def fetch_nowait(self, from_: Union[list["Node"], "Node", None] = None):
+    def fetch_nowait(self, from_: Union[List["Node"], "Node", None] = None):
         return self.Yin.fetch_nowait(from_)
 
-    async def fetch(self, from_: Union[list["Node"], "Node", None] = None, check_interval: float = 0.005):
+    async def fetch(self, from_: Union[List["Node"], "Node", None] = None, check_interval: float = 0.005):
         return await self.Yin.fetch(from_, check_interval)
 
-def create(*args: tuple[Node, tuple[Node, ...]]) -> OoFlow:
+def create(*args: Tuple[Node, Tuple[Node, ...]]) -> OoFlow:
     return OoFlow(*args)

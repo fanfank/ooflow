@@ -55,6 +55,8 @@ if __name__ == "__main__":
 
 ## Installation
 
+**Requirements**: Python 3.9+
+
 ```bash
 pip install ooflow
 ```
