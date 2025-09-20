@@ -1,0 +1,51 @@
+name: Build Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build package
+      run: |
+        python -m build
+    
+    - name: Check package
+      run: |
+        twine check dist/*
+    
+    - name: Install and test package
+      run: |
+        pip install dist/*.whl
+        python -c "import ooflow; print(f'Installed OoFlow {ooflow.__version__}')"
+        python -c "
+        import asyncio
+        import ooflow
+        
+        @ooflow.Node
+        async def test_node(ctx: ooflow.Context):
+            await ctx.emit('test successful')
+        
+        async def test():
+            flow = ooflow.create()
+            print('Package installation and basic functionality test passed!')
+        
+        asyncio.run(test())
+        "
