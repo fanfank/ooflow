@@ -130,15 +130,13 @@ class Context:
         if len(queues) == 1:
             return await queues[0].get()
 
-        while len(queues) > 0:
+        while True:
             for queue in queues:
                 try:
                     return queue.get_nowait()
                 except asyncio.QueueEmpty:
                     continue
             await asyncio.sleep(check_interval)
-
-        raise asyncio.QueueEmpty
 
 class Node:
     """
